@@ -1,0 +1,151 @@
+body {
+  margin: 0;
+  font-family: Tahoma, sans-serif;
+  background: #fff;
+  color: #18191a;
+}
+
+/* TAB SYSTEM */
+#openTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 140px;
+  width: 140px;
+  box-sizing: border-box;
+
+  padding: 6px 8px;
+  background: #2c2c2c;
+  color: white;
+  border-radius: 4px;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.tab-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* SEARCH LAYOUT */
+.search-view {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* LEFT FILTER PANEL */
+.search-filters {
+  width: 25%;
+  min-width: 220px;
+  padding: 12px;
+  box-sizing: border-box;
+  border-right: 1px solid #ddd;
+}
+
+/* RIGHT PANEL */
+.search-results {
+  width: 75%;
+  padding: 12px;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+}
+
+#results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.doc-card {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+
+  transition: 0.15s;
+}
+
+.doc-card:hover {
+  background: #f5f5f5;
+}
+
+.card-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.card-meta {
+  font-size: 12px;
+  color: #555;
+
+  display: flex;
+  justify-content: space-between;
+}
+
+.badge {
+  background: #2c2c2c;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+mark {
+  background-color: yellow;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.ai-summary {
+  background: #f4f6f8;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.ai-summary-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.ai-summary-text {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.hidden {
+  display: none;
+}
+
+.ai-sources {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #555;
+}
+
+.source-link {
+  cursor: pointer;
+  color: #2b6cb0;
+  text-decoration: underline;
+}
+
+.source-link:hover {
+  color: #1a4f8b;
+}
