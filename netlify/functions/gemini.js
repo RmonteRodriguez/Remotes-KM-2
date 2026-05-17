@@ -7,36 +7,41 @@ exports.handler = async function (event) {
     let sources = [];
 
     // ---------------- CHAT MODE ----------------
-if (body.type === "chat") {
+    if (body.type === "chat") {
 
-  const { message, context } = body;
+      const { message, context } = body;
 
-  sources = context
-    .split("DOC ID:")
-    .slice(1)
-    .map(block => {
-      const id = block.split("\n")[0].trim();
+      // Build sources properly (NO shadowing bug)
+      sources = context
+        .split("DOC ID:")
+        .slice(1)
+        .map(block => {
+          const id = block.split("\n")[0].trim();
 
-      const titleMatch = block.match(/TITLE:\s*(.*)/);
-      const title = titleMatch ? titleMatch[1].trim() : "Unknown";
+          const titleMatch = block.match(/TITLE:\s*(.*)/);
+          const title = titleMatch ? titleMatch[1].trim() : "Unknown";
 
-      return { id, title };
-    });
+          return { id, title };
+        });
 
-  prompt = `
+      prompt = `
 You are an insurance knowledge assistant.
 
 RULES:
-- Only use provided context
-- If unrelated, say: "No relevant document found"
+- Treat each document as independent
+- Do NOT assume topics are driver-related
+- If context includes renters info, only use renters info when relevant
+- If no relevant document exists, say: "No relevant document found"
 
 CONTEXT:
 ${context}
 
 QUESTION:
 ${message}
+
+Answer strictly based on matching content only.
 `;
-}
+    }
 
     // ---------------- DOC QUESTION ----------------
     else if (body.type === "doc-question") {

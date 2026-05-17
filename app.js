@@ -414,7 +414,7 @@ async function sendChat() {
     body: JSON.stringify({
       type: "chat",
       message,
-      context   // 🔥 KEEP THIS
+      context
     })
   });
 
@@ -444,23 +444,49 @@ function removeLastAIMessage() {
   }
 }
 
-function buildChatDocs(message) {
+function buildChatContext(message) {
 
-  if (!docs || !docs.length) return [];
+  if (!docs || !docs.length) {
+    return "NO DOCUMENTS LOADED";
+  }
 
   const q = message.toLowerCase();
 
-  const relevantDocs = docs
-    .filter(doc =>
-      doc.title.toLowerCase().includes(q) ||
-      doc.content.toLowerCase().includes(q)
-    )
-    .slice(0, 5);
+  const scored = docs.map(doc => {
 
-  // fallback if nothing matches
-  return relevantDocs.length
+    let score = 0;
+
+    const title = doc.title.toLowerCase();
+    const content = doc.content.toLowerCase();
+
+    // keyword match
+    if (title.includes(q)) score += 5;
+    if (content.includes(q)) score += 2;
+
+    // insurance type boosting
+    if (q.includes("renters") && content.includes("rent")) score += 10;
+    if (q.includes("driver") && content.includes("driver")) score += 10;
+    if (q.includes("coverage") && content.includes("coverage")) score += 4;
+
+    return { doc, score };
+  });
+
+  const relevantDocs = scored
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map(x => x.doc);
+
+  const finalDocs = relevantDocs.length
     ? relevantDocs
     : docs.slice(0, 3);
+
+  return finalDocs.map(doc => `
+DOC ID: ${doc.id}
+TITLE: ${doc.title}
+CONTENT:
+${doc.content.slice(0, 500)}
+`).join("\n\n---\n\n");
 }
 
 const chatToggleBtn = document.getElementById("chatToggleBtn");
