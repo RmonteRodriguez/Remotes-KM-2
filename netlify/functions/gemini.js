@@ -1,62 +1,89 @@
-exports.handler = async function(event) {
+exports.handler = async function (event) {
 
   try {
 
-    const body = JSON.parse(event.body);
-
+    const body = JSON.parse(event.body || "{}");
     const apiKey = process.env.GEMINI_API;
 
     let prompt = "";
 
-    // SEARCH SUMMARY
-    if (body.type === "search-summary") {
+    // ---------------- CHAT MODE ----------------
+    if (body.type === "chat") {
 
-      const context = body.results.map(doc => `
-DOCUMENT ID: ${doc.id}
-TITLE: ${doc.title}
-CONTENT:
-${doc.content.slice(0, 300)}
-      `).join("\n\n----------------\n\n");
+      const { message, context } = body;
 
       prompt = `
-You are an assistant inside an insurance knowledge base tool.
+You are an insurance assistant chatbot.
 
-User query:
-${body.query}
+Use ONLY the provided context.
 
-Documents provided:
+If not found, say "Not found in provided documents."
+
+CONTEXT:
 ${context}
 
-Rules:
-- Summarize in 2-5 sentences
-- Use ONLY provided documents
-- Include document IDs like [driver_status_nc]
-- Do NOT hallucinate
-      `;
+QUESTION:
+${message}
+
+Be concise and accurate.
+`;
     }
 
-    // DOC QUESTION
-    if (body.type === "doc-question") {
+    // ---------------- DOC QUESTION ----------------
+    else if (body.type === "doc-question") {
+
+      const { doc, question } = body;
 
       prompt = `
 You are an insurance knowledge assistant.
 
-Only use the document below to answer the question.
+Only use this document.
 
-If the answer is not in the document, say:
-"Not found in this document."
+TITLE:
+${doc.title}
 
-DOCUMENT TITLE:
-${body.doc.title}
-
-DOCUMENT CONTENT:
-${body.doc.content}
+CONTENT:
+${doc.content}
 
 QUESTION:
-${body.question}
-      `;
+${question}
+
+If not found say: Not found in this document.
+`;
     }
 
+    // ---------------- SEARCH SUMMARY ----------------
+    else if (body.type === "search-summary") {
+
+      const { query, results } = body;
+
+      const context = results.map(doc => `
+DOC ID: ${doc.id}
+TITLE: ${doc.title}
+CONTENT:
+${doc.content.slice(0, 400)}
+`).join("\n\n---\n\n");
+
+      prompt = `
+Summarize these insurance documents.
+
+User query: ${query}
+
+Use ONLY provided docs.
+
+Docs:
+${context}
+`;
+    }
+
+    else {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid type" })
+      };
+    }
+
+    // ---------------- CALL GEMINI (ONLY ONCE) ----------------
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -67,6 +94,7 @@ ${body.question}
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [{ text: prompt }]
             }
           ]
@@ -77,14 +105,12 @@ ${body.question}
     const data = await response.json();
 
     const answer =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text
-      || "No response returned.";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No response returned.";
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        answer
-      })
+      body: JSON.stringify({ answer })
     };
 
   } catch (err) {
@@ -94,7 +120,7 @@ ${body.question}
     return {
       statusCode: 500,
       body: JSON.stringify({
-        answer: "Server error."
+        error: "Server error"
       })
     };
   }

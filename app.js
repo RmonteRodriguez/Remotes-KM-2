@@ -252,11 +252,8 @@ async function generateAiSummary(query, results) {
   summaryBox.classList.remove("hidden");
 
   if (!query || results.length === 0) {
-
-    summaryText.innerText = "No relevant results to summarize.";
-
+    summaryText.innerText = "No relevant results.";
     sourcesBox.innerHTML = "";
-
     return;
   }
 
@@ -287,15 +284,15 @@ async function generateAiSummary(query, results) {
   ).join(" • ");
 }
 
+
+
 // -------------------- EVENTS --------------------
 
 document.getElementById("search").addEventListener("input", (e) => {
 
   const query = e.target.value.trim();
 
-  if (activeTabId !== "search") {
-    return;
-  }
+  if (activeTabId !== "search") return;
 
   const results = searchDocs(query);
 
@@ -316,7 +313,6 @@ document.getElementById("askBtn")
 .addEventListener("click", async () => {
 
   const question = document.getElementById("docQuestion").value;
-
   const doc = openTabs.find(t => t.id === activeTabId);
 
   if (!doc) return;
@@ -325,18 +321,9 @@ document.getElementById("askBtn")
 
   answerBox.innerText = "Thinking...";
 
-  try {
+  const answer = await askAI(question, doc);
 
-    const answer = await askAI(question, doc);
-
-    answerBox.innerText = answer;
-
-  } catch (err) {
-
-    console.error(err);
-
-    answerBox.innerText = "Error getting AI response.";
-  }
+  answerBox.innerText = answer;
 });
 
 document.addEventListener("click", (e) => {
@@ -362,6 +349,85 @@ document.getElementById("businessSelect").addEventListener("change", (e) => {
   filters.business = e.target.value;
   rerunSearch();
 });
+
+document.getElementById("chatSendBtn").addEventListener("click", sendChat);
+document.getElementById("chatInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendChat();
+});
+
+//------------------Chat Bot------------
+
+async function sendChat() {
+
+  const input = document.getElementById("chatInput");
+  const message = input.value.trim();
+
+  if (!message) return;
+
+  input.value = "";
+
+  addMessage("user", message);
+
+  const context = buildChatContext(message);
+
+  addMessage("ai", "Thinking...");
+
+  const response = await fetch("/.netlify/functions/gemini", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      type: "chat",
+      message,
+      context
+    })
+  });
+
+  const data = await response.json();
+
+  removeLastAIMessage();
+  addMessage("ai", data.answer);
+}
+
+function addMessage(type, text) {
+  const container = document.getElementById("chatMessages");
+
+  const msg = document.createElement("div");
+  msg.className = `msg ${type}`;
+  msg.innerText = text;
+
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeLastAIMessage() {
+  const container = document.getElementById("chatMessages");
+  const msgs = container.querySelectorAll(".msg.ai");
+
+  if (msgs.length) {
+    msgs[msgs.length - 1].remove();
+  }
+}
+
+function buildChatContext(message) {
+
+  const q = message.toLowerCase();
+
+  const relevantDocs = docs
+    .filter(doc =>
+      doc.title.toLowerCase().includes(q) ||
+      doc.content.toLowerCase().includes(q)
+    )
+    .slice(0, 3);
+
+  return relevantDocs.map(doc => `
+DOC ID: ${doc.id}
+TITLE: ${doc.title}
+CONTENT:
+${doc.content.slice(0, 400)}
+`).join("\n\n---\n\n");
+}
 
 // -------------------- INIT --------------------
 
