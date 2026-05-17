@@ -15,32 +15,25 @@ let activeTabId = "search";
 // -------------------- SEARCH --------------------
 
 function searchDocs(query) {
-
   const q = (query || "").toLowerCase().trim();
-
   if (!q) return docs;
 
-  return docs.filter(doc => {
+  return docs
+    .map(doc => {
+      let score = 0;
 
-    const title = (doc.title || "").toLowerCase();
-    const content = (doc.content || "").toLowerCase();
+      if (doc.title.toLowerCase().includes(q)) score += 5;
+      if (doc.content.toLowerCase().includes(q)) score += 2;
 
-    const matchesText =
-      title.includes(q) ||
-      content.includes(q);
+      // bonus for exact word matches
+      if (doc.content.toLowerCase().includes("renters") && q.includes("renters")) score += 10;
+      if (doc.content.toLowerCase().includes("driver") && q.includes("driver")) score += 10;
 
-    const matchesState =
-      !filters.state ||
-      (doc.states || []).some(s =>
-        s.toLowerCase() === filters.state.toLowerCase()
-      );
-
-    const matchesBusiness =
-      !filters.business ||
-      (doc.business || "").toLowerCase() === filters.business.toLowerCase();
-
-    return matchesText && matchesState && matchesBusiness;
-  });
+      return { doc, score };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(x => x.doc);
 }
 
 function renderResults(results, query) {
@@ -240,7 +233,11 @@ async function askAI(question, doc) {
 
   const data = await response.json();
 
-  return data.answer;
+  // return both so UI can use them
+  return {
+    answer: data.answer,
+    sources: data.sources || []
+  };
 }
 
 async function generateAiSummary(query, results) {
@@ -259,8 +256,28 @@ async function generateAiSummary(query, results) {
 
   summaryText.innerText = "Generating summary...";
 
-  const topResults = results.slice(0, 3);
+  // ---------------- SMART GROUPING ----------------
+  const grouped = {
+    driver: [],
+    renters: [],
+    other: []
+  };
 
+  results.forEach(doc => {
+    const text = doc.content.toLowerCase();
+
+    if (text.includes("driver")) grouped.driver.push(doc);
+    else if (text.includes("renters")) grouped.renters.push(doc);
+    else grouped.other.push(doc);
+  });
+
+  const topResults = [
+    ...grouped.renters.slice(0, 1),
+    ...grouped.driver.slice(0, 1),
+    ...grouped.other.slice(0, 1),
+  ];
+
+  // ---------------- CALL BACKEND ----------------
   const response = await fetch("/.netlify/functions/gemini", {
     method: "POST",
     headers: {
@@ -269,7 +286,7 @@ async function generateAiSummary(query, results) {
     body: JSON.stringify({
       type: "search-summary",
       query,
-      results: topResults
+      results: topResults   // 👈 IMPORTANT FIX
     })
   });
 
@@ -277,9 +294,10 @@ async function generateAiSummary(query, results) {
 
   summaryText.innerText = data.answer;
 
-  sourcesBox.innerHTML = topResults.map(doc =>
+  // ---------------- SOURCES (from backend) ----------------
+  sourcesBox.innerHTML = (data.sources || topResults).map(doc =>
     `<span class="source-link" data-id="${doc.id}">
-      ${doc.title}
+      📄 ${doc.title}
     </span>`
   ).join(" • ");
 }
@@ -318,12 +336,28 @@ document.getElementById("askBtn")
   if (!doc) return;
 
   const answerBox = document.getElementById("aiAnswer");
+  const sourcesBox = document.getElementById("chatSources"); // make sure this exists
 
   answerBox.innerText = "Thinking...";
+  if (sourcesBox) sourcesBox.innerHTML = "";
 
-  const answer = await askAI(question, doc);
+  try {
+    const result = await askAI(question, doc);
 
-  answerBox.innerText = answer;
+    answerBox.innerText = result.answer;
+
+    if (sourcesBox) {
+      sourcesBox.innerHTML = (result.sources || []).map(d =>
+        `<span class="source-link" data-id="${d.id}">
+          📄 ${d.title}
+        </span>`
+      ).join(" • ");
+    }
+
+  } catch (err) {
+    console.error(err);
+    answerBox.innerText = "Error getting AI response.";
+  }
 });
 
 document.addEventListener("click", (e) => {

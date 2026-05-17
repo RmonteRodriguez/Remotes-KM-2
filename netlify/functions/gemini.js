@@ -1,23 +1,23 @@
 exports.handler = async function (event) {
-
   try {
-
     const body = JSON.parse(event.body || "{}");
     const apiKey = process.env.GEMINI_API;
 
     let prompt = "";
+    let sources = [];
 
     // ---------------- CHAT MODE ----------------
     if (body.type === "chat") {
-
       const { message, context } = body;
 
       prompt = `
-You are an insurance assistant chatbot.
+You are an insurance knowledge assistant.
 
-Use ONLY the provided context.
+CRITICAL RULE:
+Only use documents relevant to the user's question topic.
 
-If not found, say "Not found in provided documents."
+If no relevant document exists, say:
+"No relevant document found."
 
 CONTEXT:
 ${context}
@@ -26,13 +26,16 @@ QUESTION:
 ${message}
 
 Be concise and accurate.
-`;
+      `;
+
+      sources = [];
     }
 
     // ---------------- DOC QUESTION ----------------
     else if (body.type === "doc-question") {
-
       const { doc, question } = body;
+
+      sources = [doc];
 
       prompt = `
 You are an insurance knowledge assistant.
@@ -49,33 +52,35 @@ QUESTION:
 ${question}
 
 If not found say: Not found in this document.
-`;
+      `;
     }
 
     // ---------------- SEARCH SUMMARY ----------------
     else if (body.type === "search-summary") {
-
       const { query, results } = body;
+
+      sources = results;
 
       const context = results.map(doc => `
 DOC ID: ${doc.id}
 TITLE: ${doc.title}
 CONTENT:
 ${doc.content.slice(0, 400)}
-`).join("\n\n---\n\n");
+      `).join("\n\n---\n\n");
 
       prompt = `
 Summarize these insurance documents.
 
 User query: ${query}
 
-Use ONLY provided docs.
+Use ONLY provided documents.
 
 Docs:
 ${context}
-`;
+      `;
     }
 
+    // ---------------- INVALID TYPE ----------------
     else {
       return {
         statusCode: 400,
@@ -83,7 +88,7 @@ ${context}
       };
     }
 
-    // ---------------- CALL GEMINI (ONLY ONCE) ----------------
+    // ---------------- CALL GEMINI ----------------
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -108,13 +113,19 @@ ${context}
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "No response returned.";
 
+    // ---------------- FINAL RESPONSE ----------------
     return {
       statusCode: 200,
-      body: JSON.stringify({ answer })
+      body: JSON.stringify({
+        answer,
+        sources: sources.map(doc => ({
+          id: doc.id,
+          title: doc.title
+        }))
+      })
     };
 
   } catch (err) {
-
     console.error(err);
 
     return {
