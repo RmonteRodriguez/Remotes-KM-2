@@ -9,29 +9,29 @@ exports.handler = async function (event) {
     // ---------------- CHAT MODE ----------------
 if (body.type === "chat") {
 
-  const { message, docs } = body;
+  const { message, context } = body;
 
-  // USE REAL STRUCTURED DATA ONLY
-  sources = (docs || []).map(doc => ({
-    id: doc.id,
-    title: doc.title
-  }));
+  sources = context
+    .split("DOC ID:")
+    .slice(1)
+    .map(block => {
+      const id = block.split("\n")[0].trim();
+
+      const titleMatch = block.match(/TITLE:\s*(.*)/);
+      const title = titleMatch ? titleMatch[1].trim() : "Unknown";
+
+      return { id, title };
+    });
 
   prompt = `
 You are an insurance knowledge assistant.
 
 RULES:
-- Use ONLY provided documents
-- Do NOT assume all docs are related
-- If no relevant document exists, say: "No relevant document found"
+- Only use provided context
+- If unrelated, say: "No relevant document found"
 
-DOCUMENTS:
-${(docs || []).map(doc => `
-DOC ID: ${doc.id}
-TITLE: ${doc.title}
-CONTENT:
-${doc.content.slice(0, 500)}
-`).join("\n\n---\n\n")}
+CONTEXT:
+${context}
 
 QUESTION:
 ${message}

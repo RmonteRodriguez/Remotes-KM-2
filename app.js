@@ -402,7 +402,7 @@ async function sendChat() {
 
   addMessage("user", message);
 
-  const docs = buildChatDocs(message);
+  const context = buildChatContext(message);
 
   addMessage("ai", "Thinking...");
 
@@ -414,7 +414,7 @@ async function sendChat() {
     body: JSON.stringify({
       type: "chat",
       message,
-      docs
+      context   // 🔥 KEEP THIS
     })
   });
 
@@ -422,19 +422,6 @@ async function sendChat() {
 
   removeLastAIMessage();
   addMessage("ai", data.answer);
-
-  // OPTIONAL: show sources
-  if (data.sources?.length) {
-    const container = document.getElementById("chatSources");
-
-    if (container) {
-      container.innerHTML = data.sources.map(s =>
-        `<span class="source-link" data-id="${s.id}">
-          📄 ${s.title}
-        </span>`
-      ).join(" • ");
-    }
-  }
 }
 
 function addMessage(type, text) {
