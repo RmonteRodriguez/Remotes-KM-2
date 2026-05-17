@@ -419,15 +419,32 @@ function buildChatContext(message) {
       doc.title.toLowerCase().includes(q) ||
       doc.content.toLowerCase().includes(q)
     )
-    .slice(0, 3);
+    .slice(0, 5); // give chatbot more knowledge than doc view
 
   return relevantDocs.map(doc => `
 DOC ID: ${doc.id}
 TITLE: ${doc.title}
 CONTENT:
-${doc.content.slice(0, 400)}
+${doc.content.slice(0, 500)}
 `).join("\n\n---\n\n");
 }
+
+const chatToggleBtn = document.getElementById("chatToggleBtn");
+const chatbot = document.getElementById("chatbot");
+
+let isMinimized = false;
+
+chatToggleBtn.addEventListener("click", () => {
+  isMinimized = !isMinimized;
+
+  if (isMinimized) {
+    chatbot.classList.add("minimized");
+    chatToggleBtn.innerText = "+";
+  } else {
+    chatbot.classList.remove("minimized");
+    chatToggleBtn.innerText = "−";
+  }
+});
 
 // -------------------- INIT --------------------
 
