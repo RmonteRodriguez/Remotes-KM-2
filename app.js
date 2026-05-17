@@ -22,15 +22,22 @@ function searchDocs(query) {
 
   return docs.filter(doc => {
 
+    const title = (doc.title || "").toLowerCase();
+    const content = (doc.content || "").toLowerCase();
+
     const matchesText =
-      doc.title.toLowerCase().includes(q) ||
-      doc.content.toLowerCase().includes(q);
+      title.includes(q) ||
+      content.includes(q);
 
     const matchesState =
-      !filters.state || doc.states.includes(filters.state);
+      !filters.state ||
+      (doc.states || []).some(s =>
+        s.toLowerCase() === filters.state.toLowerCase()
+      );
 
     const matchesBusiness =
-      !filters.business || doc.business === filters.business;
+      !filters.business ||
+      (doc.business || "").toLowerCase() === filters.business.toLowerCase();
 
     return matchesText && matchesState && matchesBusiness;
   });
@@ -94,6 +101,15 @@ function getSnippet(text, length = 180) {
   return text.length > length
     ? text.slice(0, length) + "..."
     : text;
+}
+
+function rerunSearch() {
+
+  const query = document.getElementById("search").value.trim();
+
+  const results = searchDocs(query);
+
+  renderResults(results, query);
 }
 
 // -------------------- DOC SYSTEM --------------------
@@ -335,6 +351,16 @@ document.addEventListener("click", (e) => {
       openDoc(doc);
     }
   }
+});
+
+document.getElementById("stateSelect").addEventListener("change", (e) => {
+  filters.state = e.target.value;
+  rerunSearch();
+});
+
+document.getElementById("businessSelect").addEventListener("change", (e) => {
+  filters.business = e.target.value;
+  rerunSearch();
 });
 
 // -------------------- INIT --------------------
