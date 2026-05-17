@@ -15,6 +15,7 @@ let activeTabId = "search";
 // -------------------- SEARCH --------------------
 
 function searchDocs(query) {
+
   const q = (query || "").toLowerCase().trim();
 
   if (!q) return docs;
@@ -36,11 +37,15 @@ function searchDocs(query) {
 }
 
 function renderResults(results, query) {
+
   const container = document.getElementById("results");
+
   container.innerHTML = "";
 
   results.forEach(doc => {
+
     const card = document.createElement("div");
+
     card.className = "doc-card";
 
     card.innerHTML = `
@@ -65,19 +70,140 @@ function renderResults(results, query) {
 }
 
 function highlightText(text, query) {
+
   if (!query) return text;
 
   const words = query.trim().split(" ");
+
   let result = text;
 
   for (let word of words) {
+
     if (!word) continue;
 
     const regex = new RegExp(word, "gi");
+
     result = result.replace(regex, "<mark>$&</mark>");
   }
 
   return result;
+}
+
+function getSnippet(text, length = 180) {
+
+  return text.length > length
+    ? text.slice(0, length) + "..."
+    : text;
+}
+
+// -------------------- DOC SYSTEM --------------------
+
+function openDoc(doc) {
+
+  const existing = openTabs.find(t => t.id === doc.id);
+
+  if (!existing) {
+    openTabs.push(doc);
+  }
+
+  activeTabId = doc.id;
+
+  renderTabs();
+  renderView();
+}
+
+function closeTab(id) {
+
+  openTabs = openTabs.filter(t => t.id !== id);
+
+  if (activeTabId === id) {
+    activeTabId = "search";
+  }
+
+  renderTabs();
+  renderView();
+}
+
+// -------------------- TABS --------------------
+
+function renderTabs() {
+
+  const container = document.getElementById("openTabs");
+
+  container.innerHTML = "";
+
+  openTabs.forEach(tab => {
+
+    const tabEl = document.createElement("div");
+
+    tabEl.className = "tab";
+
+    if (tab.id === activeTabId) {
+      tabEl.classList.add("active");
+    }
+
+    const title = document.createElement("span");
+
+    title.className = "tab-title";
+    title.innerText = tab.title;
+
+    tabEl.onclick = () => {
+
+      activeTabId = tab.id;
+
+      renderTabs();
+      renderView();
+    };
+
+    if (tab.id !== "search") {
+
+      const closeBtn = document.createElement("span");
+
+      closeBtn.className = "close";
+      closeBtn.innerText = "×";
+
+      closeBtn.onclick = (e) => {
+
+        e.stopPropagation();
+
+        closeTab(tab.id);
+      };
+
+      tabEl.appendChild(title);
+      tabEl.appendChild(closeBtn);
+
+    } else {
+
+      tabEl.appendChild(title);
+    }
+
+    container.appendChild(tabEl);
+  });
+}
+
+// -------------------- VIEW --------------------
+
+function renderView() {
+
+  const isSearch = activeTabId === "search";
+
+  if (isSearch) {
+
+    document.getElementById("searchView").style.display = "flex";
+    document.getElementById("docView").style.display = "none";
+
+    return;
+  }
+
+  const doc = openTabs.find(t => t.id === activeTabId);
+
+  if (!doc) return;
+
+  document.getElementById("searchView").style.display = "none";
+  document.getElementById("docView").style.display = "block";
+
+  document.getElementById("docTitle").innerText = doc.title;
+  document.getElementById("docContent").innerText = doc.content;
 }
 
 // -------------------- AI --------------------
@@ -110,8 +236,11 @@ async function generateAiSummary(query, results) {
   summaryBox.classList.remove("hidden");
 
   if (!query || results.length === 0) {
+
     summaryText.innerText = "No relevant results to summarize.";
+
     sourcesBox.innerHTML = "";
+
     return;
   }
 
@@ -167,7 +296,8 @@ document.getElementById("generateSummaryBtn")
   generateAiSummary(query, results);
 });
 
-document.getElementById("askBtn").addEventListener("click", async () => {
+document.getElementById("askBtn")
+.addEventListener("click", async () => {
 
   const question = document.getElementById("docQuestion").value;
 
@@ -192,3 +322,22 @@ document.getElementById("askBtn").addEventListener("click", async () => {
     answerBox.innerText = "Error getting AI response.";
   }
 });
+
+document.addEventListener("click", (e) => {
+
+  if (e.target.classList.contains("source-link")) {
+
+    const id = e.target.dataset.id;
+
+    const doc = docs.find(d => d.id === id);
+
+    if (doc) {
+      openDoc(doc);
+    }
+  }
+});
+
+// -------------------- INIT --------------------
+
+renderTabs();
+renderView();
