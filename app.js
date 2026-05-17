@@ -412,6 +412,10 @@ function removeLastAIMessage() {
 
 function buildChatContext(message) {
 
+  if (!docs || !docs.length) {
+    return "NO DOCUMENTS LOADED";
+  }
+
   const q = message.toLowerCase();
 
   const relevantDocs = docs
@@ -419,9 +423,14 @@ function buildChatContext(message) {
       doc.title.toLowerCase().includes(q) ||
       doc.content.toLowerCase().includes(q)
     )
-    .slice(0, 5); // give chatbot more knowledge than doc view
+    .slice(0, 5);
 
-  return relevantDocs.map(doc => `
+  // fallback if nothing matches
+  const finalDocs = relevantDocs.length
+    ? relevantDocs
+    : docs.slice(0, 3);
+
+  return finalDocs.map(doc => `
 DOC ID: ${doc.id}
 TITLE: ${doc.title}
 CONTENT:
