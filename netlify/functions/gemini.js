@@ -8,16 +8,30 @@ exports.handler = async function (event) {
 
     // ---------------- CHAT MODE ----------------
     if (body.type === "chat") {
+
       const { message, context } = body;
+
+      // Build sources properly (NO shadowing bug)
+      sources = context
+        .split("DOC ID:")
+        .slice(1)
+        .map(block => {
+          const id = block.split("\n")[0].trim();
+
+          const titleMatch = block.match(/TITLE:\s*(.*)/);
+          const title = titleMatch ? titleMatch[1].trim() : "Unknown";
+
+          return { id, title };
+        });
 
       prompt = `
 You are an insurance knowledge assistant.
 
-CRITICAL RULE:
-Only use documents relevant to the user's question topic.
-
-If no relevant document exists, say:
-"No relevant document found."
+RULES:
+- Treat each document as independent
+- Do NOT assume topics are driver-related
+- If context includes renters info, only use renters info when relevant
+- If no relevant document exists, say: "No relevant document found"
 
 CONTEXT:
 ${context}
@@ -25,17 +39,16 @@ ${context}
 QUESTION:
 ${message}
 
-Be concise and accurate.
-      `;
-
-      sources = [];
+Answer strictly based on matching content only.
+`;
     }
 
     // ---------------- DOC QUESTION ----------------
     else if (body.type === "doc-question") {
+
       const { doc, question } = body;
 
-      sources = [doc];
+      sources = [{ id: doc.id, title: doc.title }];
 
       prompt = `
 You are an insurance knowledge assistant.
@@ -52,21 +65,25 @@ QUESTION:
 ${question}
 
 If not found say: Not found in this document.
-      `;
+`;
     }
 
     // ---------------- SEARCH SUMMARY ----------------
     else if (body.type === "search-summary") {
+
       const { query, results } = body;
 
-      sources = results;
+      sources = results.map(doc => ({
+        id: doc.id,
+        title: doc.title
+      }));
 
       const context = results.map(doc => `
 DOC ID: ${doc.id}
 TITLE: ${doc.title}
 CONTENT:
 ${doc.content.slice(0, 400)}
-      `).join("\n\n---\n\n");
+`).join("\n\n---\n\n");
 
       prompt = `
 Summarize these insurance documents.
@@ -77,7 +94,7 @@ Use ONLY provided documents.
 
 Docs:
 ${context}
-      `;
+`;
     }
 
     // ---------------- INVALID TYPE ----------------
@@ -118,10 +135,7 @@ ${context}
       statusCode: 200,
       body: JSON.stringify({
         answer,
-        sources: sources.map(doc => ({
-          id: doc.id,
-          title: doc.title
-        }))
+        sources
       })
     };
 

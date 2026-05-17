@@ -349,7 +349,7 @@ document.getElementById("askBtn")
     if (sourcesBox) {
       sourcesBox.innerHTML = (result.sources || []).map(d =>
         `<span class="source-link" data-id="${d.id}">
-          📄 ${d.title}
+          ${d.title}
         </span>`
       ).join(" • ");
     }
@@ -452,14 +452,31 @@ function buildChatContext(message) {
 
   const q = message.toLowerCase();
 
-  const relevantDocs = docs
-    .filter(doc =>
-      doc.title.toLowerCase().includes(q) ||
-      doc.content.toLowerCase().includes(q)
-    )
-    .slice(0, 5);
+  const scored = docs.map(doc => {
 
-  // fallback if nothing matches
+    let score = 0;
+
+    const title = doc.title.toLowerCase();
+    const content = doc.content.toLowerCase();
+
+    // keyword match
+    if (title.includes(q)) score += 5;
+    if (content.includes(q)) score += 2;
+
+    // insurance type boosting
+    if (q.includes("renters") && content.includes("rent")) score += 10;
+    if (q.includes("driver") && content.includes("driver")) score += 10;
+    if (q.includes("coverage") && content.includes("coverage")) score += 4;
+
+    return { doc, score };
+  });
+
+  const relevantDocs = scored
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map(x => x.doc);
+
   const finalDocs = relevantDocs.length
     ? relevantDocs
     : docs.slice(0, 3);
