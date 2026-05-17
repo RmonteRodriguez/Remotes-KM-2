@@ -13,7 +13,7 @@ let openTabs = [SEARCH_TAB];
 let activeTabId = "search";
 let aiTimeout;
 
-const GEMINI_API_KEY = import.meta.env.GEMINI_API;
+const GEMINI_API_KEY = process.env.GEMINI_API;
 
 // -------------------- SEARCH --------------------
 
