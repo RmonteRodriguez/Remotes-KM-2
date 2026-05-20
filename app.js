@@ -15,25 +15,29 @@ let activeTabId = "search";
 // -------------------- SEARCH --------------------
 
 function searchDocs(query) {
+
   const q = (query || "").toLowerCase().trim();
-  if (!q) return docs;
 
-  return docs
-    .map(doc => {
-      let score = 0;
+  return docs.filter(doc => {
 
-      if (doc.title.toLowerCase().includes(q)) score += 5;
-      if (doc.content.toLowerCase().includes(q)) score += 2;
+    // ---------------- TEXT MATCH ----------------
+    const matchesText =
+      !q ||
+      doc.title.toLowerCase().includes(q) ||
+      doc.content.toLowerCase().includes(q);
 
-      // bonus for exact word matches
-      if (doc.content.toLowerCase().includes("renters") && q.includes("renters")) score += 10;
-      if (doc.content.toLowerCase().includes("driver") && q.includes("driver")) score += 10;
+    // ---------------- STATE FILTER ----------------
+    const matchesState =
+      !filters.state ||
+      doc.states.includes(filters.state);
 
-      return { doc, score };
-    })
-    .filter(x => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map(x => x.doc);
+    // ---------------- BUSINESS FILTER ----------------
+    const matchesBusiness =
+      !filters.business ||
+      doc.business === filters.business;
+
+    return matchesText && matchesState && matchesBusiness;
+  });
 }
 
 function renderResults(results, query) {
